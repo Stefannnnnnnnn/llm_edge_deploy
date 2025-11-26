@@ -50,7 +50,26 @@ def tokenize(sample):
 
 # Configure the quantization algorithm to run.
 recipe = [
-    AWQModifier(ignore=["lm_head"], scheme="W4A16_ASYM", targets=["Linear"]),
+    AWQModifier(
+        ignore=["lm_head"], 
+        scheme="W4A16", 
+        targets=["Linear"],
+        mappings=[
+            AWQMapping(
+                "re:.*input_layernorm",
+                ["re:.*q_proj", "re:.*k_proj", "re:.*v_proj"],
+            ),
+            AWQMapping("re:.*v_proj", ["re:.*o_proj"]),
+            AWQMapping(
+                "re:.*post_attention_layernorm",
+                ["re:.*gate_proj", "re:.*up_proj"],
+            ),
+            AWQMapping(
+                "re:.*up_proj",
+                ["re:.*down_proj"],
+            ),
+        ]
+    ),
 ]
 
 # Apply algorithms.
@@ -74,6 +93,6 @@ print(tokenizer.decode(output[0]))
 print("==========================================\n\n")
 
 # Save to disk compressed.
-SAVE_DIR = MODEL_ID.rstrip("/").split("/")[-1] + "-awq-asym"
+SAVE_DIR = MODEL_ID.rstrip("/").split("/")[-1] + "-awq"
 model.save_pretrained(SAVE_DIR, save_compressed=True)
 tokenizer.save_pretrained(SAVE_DIR)
